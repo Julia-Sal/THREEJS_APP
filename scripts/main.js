@@ -3,15 +3,17 @@ import { createBackground} from './background';
 
 let camera, scene, renderer;
 const originalBoxSize = 3;
-
+let score = -2;
 let stack = [];
 const boxHeight = 1;
 
 let gameStarted = false;
+const docResults = document.getElementById("score");
 
 // Scene
 function init() {
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x040404);
 
   addLayer(0, 0, originalBoxSize, originalBoxSize);
   addLayer(-10, 0, originalBoxSize, originalBoxSize, "x")
@@ -61,6 +63,8 @@ init();
 
 
 function addLayer(x, z, width, depth, direction){
+  score +=1;
+  docResults.textContent = score;
   const y = boxHeight * stack.length;
 
   const layer = generateBox(x, y, z, width, depth);
@@ -82,7 +86,7 @@ function generateBox(x, y, z, width, depth) {
   const windowColor = new THREE.Color(0x48D1FF);
   const windowGeometry = new THREE.BoxGeometry(width * 0.1, boxHeight * 0.5, depth * 0.1);
   const windowMaterial = new THREE.MeshLambertMaterial({ color: windowColor });
-
+  
   const windowPositions = [
     { x: -width * 0.3, y: 0.15, z: depth * 0.5 },
     { x: width * 0.3, y: 0.15, z: depth * 0.5 },
@@ -92,7 +96,7 @@ function generateBox(x, y, z, width, depth) {
     { x: width * 0.5, y: 0.15, z: -depth * 0.3},
     { x: width * 0.5, y: 0.15, z: depth * 0.3},
     { x: width * 0.5, y: 0.15, z: -depth * 0.1},
-    // Dodaj więcej pozycji okien, jeśli potrzebujesz
+    // Można dodać więcej okien
   ];
 
   windowPositions.forEach((pos) => {
@@ -100,7 +104,7 @@ function generateBox(x, y, z, width, depth) {
     windowMesh.position.set(x + pos.x, y + pos.y, z + pos.z);
     group.add(windowMesh); // Dodawanie okna do grupy
   });
-
+  group.renderOrder = -1;
   scene.add(group); // Dodawanie grupy do sceny
 
   return {
@@ -116,26 +120,37 @@ window.addEventListener("click", () => {
     gameStarted = true;
   }else{
     const topLayer = stack[stack.length - 1];
+    const previousLayer = stack[stack.length -2];
     const direction = topLayer.direction;
+    
     // Next layer
     const nextX = direction == "x" ? 0 : -10;
     const nextZ = direction == "z" ? 0 : -10;
     const newWidth = originalBoxSize;
     const newDepth = originalBoxSize;
     const nextDirection = direction == "x" ? "z" : "x";
+
+
+
+
+
+    
     addLayer(nextX, nextZ, newWidth, newDepth, nextDirection);
   }
 
 });
 
 function animation(){
-  const speed = 0.15;
+  const min = 0.01;
+  const max = 0.25;
+
+  const speed = Math.random() * (max - min) + min;
 
   const topLayer = stack[stack.length -1];
   topLayer.threejs.position[topLayer.direction] += speed;
 
   if(camera.position.y <boxHeight *(stack.length -2) + 4){
-    camera.position.y += speed;
+    camera.position.y += 0.15;
   }
   renderer.render(scene, camera);
 }
