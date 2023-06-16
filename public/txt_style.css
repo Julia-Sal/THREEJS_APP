@@ -8,11 +8,16 @@ body {
 }
 
 #instructions {
-  display: none;
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(20, 20, 20, 0.75);
 }
 
-#results,
-body:hover #instructions {
+#results{
   position: absolute;
   display: flex;
   align-items: center;

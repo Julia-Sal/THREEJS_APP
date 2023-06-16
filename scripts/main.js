@@ -55,12 +55,6 @@ function init() {
 
   scene = new THREE.Scene();
   createBackground(scene);
-  // Foundation
-  addLayer(0, 0, originalBoxSize, originalBoxSize);
-
-  // First layer
-  addLayer(-10, 0, originalBoxSize, originalBoxSize, "x");
-
   // Set up lights
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
@@ -72,8 +66,20 @@ function init() {
   // Set up renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setAnimationLoop(animation);
+  
   document.body.appendChild(renderer.domElement);
+}
+
+function firstStart(){
+  // Foundation
+  addLayer(0, 0, originalBoxSize, originalBoxSize);
+
+  // First layer
+  addLayer(-10, 0, originalBoxSize, originalBoxSize, "x");
+
+  renderer.setAnimationLoop(animation);
+  instructionsElement.style.display = "none";
+  
 }
 
 function startGame() {
@@ -82,9 +88,8 @@ function startGame() {
   stack = [];
   overhangs = [];
 
-  if (instructionsElement) instructionsElement.style.display = "none";
   if (resultsElement) resultsElement.style.display = "none";
-  if (scoreElement) scoreElement.innerText = 0;
+  scoreElement.innerText = 0;
 
   if (world) {
     // Remove every object from world
@@ -257,7 +262,7 @@ function cutBox(topLayer, overlap, size, delta) {
 window.addEventListener("mousedown", splitBlockAndAddNextOneIfOverlaps);
 window.addEventListener("touchstart", splitBlockAndAddNextOneIfOverlaps);
 restartBtn.addEventListener("click", startGame);
-startBtn.addEventListener("click", startGame);
+startBtn.addEventListener("click", firstStart);
 
 function splitBlockAndAddNextOneIfOverlaps() {
   if (gameEnded) return;
