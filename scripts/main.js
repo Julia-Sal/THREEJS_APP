@@ -1,156 +1,310 @@
 import * as THREE from 'three';
 import { createBackground} from './background';
+import * as CANNON from 'cannon';
 
-let camera, scene, renderer;
-const originalBoxSize = 3;
-let score = -2;
-let stack = [];
-const boxHeight = 1;
 
-let gameStarted = false;
-const docResults = document.getElementById("score");
+window.focus(); // Capture keys right away (by default focus is on editor)
 
-// Scene
-function init() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x040404);
+let camera, scene, renderer; // ThreeJS globals
+let world; // CannonJs world
+let lastTime; // Last timestamp of animation
+let stack; // Parts that stay solid on top of each other
+let overhangs; // Overhanging parts that fall down
+const boxHeight = 1; // Height of each layer
+const originalBoxSize = 3; // Original width and height of a box
+let gameEnded;
 
-  addLayer(0, 0, originalBoxSize, originalBoxSize);
-  addLayer(-10, 0, originalBoxSize, originalBoxSize, "x")
-
-  createBackground(scene);
-  setLights(scene);
-
-  // Camera
-  const width = 10;
-  const height = width * (window.innerHeight / window.innerWidth);
-  camera = new THREE.OrthographicCamera(
-    width / -1, // left
-    width / 1, // right
-    height / 1, // top
-    height / -1, // bottom
-    0.01, // near
-    100
-  );
-  camera.position.set(3, 2, 3);
-  camera.lookAt(0, 0, 0);
-
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  animate(renderer);
-}
-
-function setLights(scene) {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-  directionalLight.position.set(10, 20, 0);
-  scene.add(directionalLight);
-}
-
-function animate(renderer) {
-  requestAnimationFrame(() => animate(renderer));
-  renderer.render(scene, camera);
-}
+const scoreElement = document.getElementById("score");
+const instructionsElement = document.getElementById("instructions");
+const resultsElement = document.getElementById("results");
+const restartBtn = document.getElementById("restartBtn");
 
 init();
 
 
+function init() {
+  gameEnded = false;
+  lastTime = 0;
+  stack = [];
+  overhangs = [];
 
+  // Initialize CannonJS
+  world = new CANNON.World();
+  world.gravity.set(0, -10, 0); // Gravity pulls things down
+  world.broadphase = new CANNON.NaiveBroadphase();
+  world.solver.iterations = 40;
 
-function addLayer(x, z, width, depth, direction){
-  score +=1;
-  docResults.textContent = score;
-  const y = boxHeight * stack.length;
+  // Initialize ThreeJs
+  const aspect = window.innerWidth / window.innerHeight;
+  const width = 10;
+  const height = width / aspect;
+  
 
-  const layer = generateBox(x, y, z, width, depth);
+  camera = new THREE.OrthographicCamera(
+    width / -2, // left
+    width / 2, // right
+    height / 2, // top
+    height / -2, // bottom
+    0, // near plane
+    100 // far plane
+  );
+
+  camera.position.set(4, 4, 4);
+  camera.lookAt(0, 1, 0);
+
+  scene = new THREE.Scene();
+  createBackground(scene);
+  // Foundation
+  addLayer(0, 0, originalBoxSize, originalBoxSize);
+
+  // First layer
+  addLayer(-10, 0, originalBoxSize, originalBoxSize, "x");
+
+  // Set up lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  dirLight.position.set(10, 20, 0);
+  scene.add(dirLight);
+
+  // Set up renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setAnimationLoop(animation);
+  document.body.appendChild(renderer.domElement);
+}
+
+function startGame() {
+  gameEnded = false;
+  lastTime = 0;
+  stack = [];
+  overhangs = [];
+
+  if (instructionsElement) instructionsElement.style.display = "none";
+  if (resultsElement) resultsElement.style.display = "none";
+  if (scoreElement) scoreElement.innerText = 0;
+
+  if (world) {
+    // Remove every object from world
+    while (world.bodies.length > 0) {
+      world.remove(world.bodies[0]);
+    }
+  }
+
+  if (scene) {
+    // Remove every Mesh from the scene
+    while (scene.children.find((c) => c.type == "Mesh")) {
+      const mesh = scene.children.find((c) => c.type == "Mesh");
+      scene.remove(mesh);
+    }
+
+    // Foundation
+    addLayer(0, 0, originalBoxSize, originalBoxSize);
+
+    // First layer
+    addLayer(-10, 0, originalBoxSize, originalBoxSize, "x");
+  }
+
+  if (camera) {
+    // Reset camera positions
+    camera.position.set(4, 4, 4);
+    camera.lookAt(0, 0, 0);
+  }
+}
+
+function addLayer(x, z, width, depth, direction) {
+  const y = boxHeight * stack.length; // Add the new box one layer higher
+  const layer = generateBox(x, y, z, width, depth, false);
   layer.direction = direction;
   stack.push(layer);
 }
 
-function generateBox(x, y, z, width, depth) {
+function addOverhang(x, z, width, depth) {
+  const y = boxHeight * (stack.length - 1); // Add the new box one the same layer
+  const overhang = generateBox(x, y, z, width, depth, true);
+  overhangs.push(overhang);
+}
+
+function generateBox(x, y, z, width, depth, falls) {
+  // ThreeJS
+  const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
   const color = new THREE.Color(`hsl(${30 + stack.length * 4}, 100%, 50%)`);
+  const material = new THREE.MeshLambertMaterial({ color });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
 
-  const group = new THREE.Group(); // Tworzenie grupy
-
-  const mainGeometry = new THREE.BoxGeometry(width, boxHeight, depth);
-  const mainMaterial = new THREE.MeshLambertMaterial({ color: color });
-  const mainMesh = new THREE.Mesh(mainGeometry, mainMaterial);
-  mainMesh.position.set(x, y, z);
-  group.add(mainMesh); // Dodawanie głównego obiektu do grupy
-
-  const windowColor = new THREE.Color(0x48D1FF);
-  const windowGeometry = new THREE.BoxGeometry(width * 0.1, boxHeight * 0.5, depth * 0.1);
-  const windowMaterial = new THREE.MeshLambertMaterial({ color: windowColor });
-  
-  const windowPositions = [
-    { x: -width * 0.3, y: 0.15, z: depth * 0.5 },
-    { x: width * 0.3, y: 0.15, z: depth * 0.5 },
-    { x: width * -0.1, y: 0.15, z: depth * 0.5 },
-    { x: width * 0.1, y: 0.15, z: depth * 0.5 },
-    { x: width * 0.5, y: 0.15, z: depth * 0.1},
-    { x: width * 0.5, y: 0.15, z: -depth * 0.3},
-    { x: width * 0.5, y: 0.15, z: depth * 0.3},
-    { x: width * 0.5, y: 0.15, z: -depth * 0.1},
-    // Można dodać więcej okien
-  ];
-
-  windowPositions.forEach((pos) => {
-    const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
-    windowMesh.position.set(x + pos.x, y + pos.y, z + pos.z);
-    group.add(windowMesh); // Dodawanie okna do grupy
-  });
-  group.renderOrder = -1;
-  scene.add(group); // Dodawanie grupy do sceny
+  // CannonJS
+  const shape = new CANNON.Box(
+    new CANNON.Vec3(width / 2, boxHeight / 2, depth / 2)
+  );
+  let mass = falls ? 5 : 0; // If it shouldn't fall then setting the mass to zero will keep it stationary
+  mass *= width / originalBoxSize; // Reduce mass proportionately by size
+  mass *= depth / originalBoxSize; // Reduce mass proportionately by size
+  const body = new CANNON.Body({ mass, shape });
+  body.position.set(x, y, z);
+  world.addBody(body);
 
   return {
-    threejs: group, // Zwracanie grupy zamiast głównego obiektu
+    threejs: mesh,
+    cannonjs: body,
     width,
-    depth,
+    depth
   };
 }
 
-window.addEventListener("click", () => {
-  if(!gameStarted){
-    renderer.setAnimationLoop(animation);
-    gameStarted = true;
-  }else{
-    const topLayer = stack[stack.length - 1];
-    const previousLayer = stack[stack.length -2];
-    const direction = topLayer.direction;
-    
+function cutBox(topLayer, overlap, size, delta) {
+  const direction = topLayer.direction;
+  const newWidth = direction == "x" ? overlap : topLayer.width;
+  const newDepth = direction == "z" ? overlap : topLayer.depth;
+
+  // Update metadata
+  topLayer.width = newWidth;
+  topLayer.depth = newDepth;
+
+  // Update ThreeJS model
+  topLayer.threejs.scale[direction] = overlap / size;
+  topLayer.threejs.position[direction] -= delta / 2;
+
+  // Update CannonJS model
+  topLayer.cannonjs.position[direction] -= delta / 2;
+
+  // Replace shape to a smaller one (in CannonJS you can't simply just scale a shape)
+  const shape = new CANNON.Box(
+    new CANNON.Vec3(newWidth / 2, boxHeight / 2, newDepth / 2)
+  );
+  topLayer.cannonjs.shapes = [];
+  topLayer.cannonjs.addShape(shape);
+}
+
+window.addEventListener("mousedown", splitBlockAndAddNextOneIfOverlaps);
+window.addEventListener("touchstart", splitBlockAndAddNextOneIfOverlaps);
+
+
+restartBtn.addEventListener("click", restart);
+function restart(){
+  startGame();
+  return;
+}
+
+
+function splitBlockAndAddNextOneIfOverlaps() {
+  if (gameEnded) return;
+
+  const topLayer = stack[stack.length - 1];
+  const previousLayer = stack[stack.length - 2];
+
+  const direction = topLayer.direction;
+
+  const size = direction == "x" ? topLayer.width : topLayer.depth;
+  const delta =
+    topLayer.threejs.position[direction] -
+    previousLayer.threejs.position[direction];
+  const overhangSize = Math.abs(delta);
+  const overlap = size - overhangSize;
+
+  if (overlap > 0) {
+    cutBox(topLayer, overlap, size, delta);
+
+    // Overhang
+    const overhangShift = (overlap / 2 + overhangSize / 2) * Math.sign(delta);
+    const overhangX =
+      direction == "x"
+        ? topLayer.threejs.position.x + overhangShift
+        : topLayer.threejs.position.x;
+    const overhangZ =
+      direction == "z"
+        ? topLayer.threejs.position.z + overhangShift
+        : topLayer.threejs.position.z;
+    const overhangWidth = direction == "x" ? overhangSize : topLayer.width;
+    const overhangDepth = direction == "z" ? overhangSize : topLayer.depth;
+
+    addOverhang(overhangX, overhangZ, overhangWidth, overhangDepth);
+
     // Next layer
-    const nextX = direction == "x" ? 0 : -10;
-    const nextZ = direction == "z" ? 0 : -10;
-    const newWidth = originalBoxSize;
-    const newDepth = originalBoxSize;
+    const nextX = direction == "x" ? topLayer.threejs.position.x : -10;
+    const nextZ = direction == "z" ? topLayer.threejs.position.z : -10;
+    const newWidth = topLayer.width; // New layer has the same size as the cut top layer
+    const newDepth = topLayer.depth; // New layer has the same size as the cut top layer
     const nextDirection = direction == "x" ? "z" : "x";
 
-
-
-
-
-    
+    if (scoreElement) scoreElement.innerText = stack.length - 1;
     addLayer(nextX, nextZ, newWidth, newDepth, nextDirection);
+  } else {
+    missedTheSpot();
   }
-
-});
-
-function animation(){
-  const min = 0.01;
-  const max = 0.25;
-
-  const speed = Math.random() * (max - min) + min;
-
-  const topLayer = stack[stack.length -1];
-  topLayer.threejs.position[topLayer.direction] += speed;
-
-  if(camera.position.y <boxHeight *(stack.length -2) + 4){
-    camera.position.y += 0.15;
-  }
-  renderer.render(scene, camera);
 }
+
+function missedTheSpot() {
+  const topLayer = stack[stack.length - 1];
+
+  // Turn to top layer into an overhang and let it fall down
+  addOverhang(
+    topLayer.threejs.position.x,
+    topLayer.threejs.position.z,
+    topLayer.width,
+    topLayer.depth
+  );
+  world.remove(topLayer.cannonjs);
+  scene.remove(topLayer.threejs);
+
+  gameEnded = true;
+  if (resultsElement) resultsElement.style.display = "flex";
+}
+
+function animation(time) {
+  if (lastTime) {
+    const timePassed = time - lastTime;
+    const speed = 0.008;
+
+    const topLayer = stack[stack.length - 1];
+    const previousLayer = stack[stack.length - 2];
+
+
+    if (!gameEnded) {
+      // Keep the position visible on UI and the position in the model in sync
+      topLayer.threejs.position[topLayer.direction] += speed * timePassed;
+      topLayer.cannonjs.position[topLayer.direction] += speed * timePassed;
+
+      // If the box went beyond the stack then show up the fail screen
+      if (topLayer.threejs.position[topLayer.direction] > 10) {
+        missedTheSpot();
+      }
+    }
+
+    // 4 is the initial camera height
+    if (camera.position.y < boxHeight * (stack.length - 2) + 4) {
+      camera.position.y += speed * timePassed;
+    }
+
+    updatePhysics(timePassed);
+    renderer.render(scene, camera);
+  }
+  lastTime = time;
+}
+
+function updatePhysics(timePassed) {
+  world.step(timePassed / 1000); // Step the physics world
+
+  // Copy coordinates from Cannon.js to Three.js
+  overhangs.forEach((element) => {
+    element.threejs.position.copy(element.cannonjs.position);
+    element.threejs.quaternion.copy(element.cannonjs.quaternion);
+  });
+}
+
+window.addEventListener("resize", () => {
+  // Adjust camera
+  console.log("resize", window.innerWidth, window.innerHeight);
+  const aspect = window.innerWidth / window.innerHeight;
+  const width = 10;
+  const height = width / aspect;
+
+  camera.top = height / 2;
+  camera.bottom = height / -2;
+
+  // Reset renderer
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.render(scene, camera);
+});
