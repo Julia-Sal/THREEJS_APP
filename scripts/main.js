@@ -18,6 +18,7 @@ const scoreElement = document.getElementById("score");
 const instructionsElement = document.getElementById("instructions");
 const resultsElement = document.getElementById("results");
 const restartBtn = document.getElementById("restartBtn");
+const startBtn = document.getElementById("startBtn");
 
 init();
 
@@ -109,7 +110,7 @@ function startGame() {
   if (camera) {
     // Reset camera positions
     camera.position.set(4, 4, 4);
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(0, 1, 0);
   }
 }
 
@@ -126,6 +127,78 @@ function addOverhang(x, z, width, depth) {
   overhangs.push(overhang);
 }
 
+function generateWindows(width, depth, mesh){
+  //podstawowe ustawienia okien
+  const windowSize = Math.min(width, depth) * 0.1;
+  const windowGeometry = new THREE.BoxGeometry(0.1, boxHeight*0.4, 0.1);
+  const windowMaterial = new THREE.MeshLambertMaterial({ color: 0x78b0ff });
+
+  const randomWindowPositions = decideHowManyWindow(width, depth, windowSize); //zdecyduj ile okien ma powstać
+  
+  //wygeneruj okna
+  randomWindowPositions.forEach((windowPosition) => {
+    const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
+    windowMesh.position.set(
+      windowPosition.x,
+      windowPosition.y,
+      windowPosition.z
+    );
+    mesh.add(windowMesh);
+  });
+}
+
+function decideHowManyWindow(width, depth, windowSize){
+  if(width>2){
+  return [
+    //tył
+    { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.2 },
+    { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.2 },
+    { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.4 },
+    { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.4 },
+
+    //przód prawa
+    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
+    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.4 },
+    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
+    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.4 },
+   // { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
+
+   //tył
+    { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+    { x: width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
+    { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+    { x: -width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
+
+    //przód lewa
+    { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
+    { x: width * 0.4, y: 0, z: depth / 2 + windowSize / 2 },
+    { x: -width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
+    { x: -width * 0.4, y: 0, z: depth / 2 + windowSize / 2 },
+    
+    
+  ];
+  }else if(width>1){  //po dwa okna
+    return [
+      { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
+      { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
+
+      { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+      { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+
+      { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
+      { x: -width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
+    ]
+  }else{  //po jednym oknie w losowym miejscu
+    return [
+      { x: -width / 2 - windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
+      { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
+      { x: Math.random() * width - width / 2, y: 0, z: -depth / 2 - windowSize / 2 },
+      { x: Math.random() * width - width / 2, y: 0, z: depth / 2 + windowSize / 2 },
+    ]
+  }
+}
+
+
 function generateBox(x, y, z, width, depth, falls) {
   // ThreeJS
   const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
@@ -133,15 +206,18 @@ function generateBox(x, y, z, width, depth, falls) {
   const material = new THREE.MeshLambertMaterial({ color });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(x, y, z);
+
+  generateWindows(width, depth, mesh); //wygeneruj okna
+
   scene.add(mesh);
 
   // CannonJS
   const shape = new CANNON.Box(
     new CANNON.Vec3(width / 2, boxHeight / 2, depth / 2)
   );
-  let mass = falls ? 5 : 0; // If it shouldn't fall then setting the mass to zero will keep it stationary
-  mass *= width / originalBoxSize; // Reduce mass proportionately by size
-  mass *= depth / originalBoxSize; // Reduce mass proportionately by size
+  let mass = falls ? 5 : 0;
+  mass *= width / originalBoxSize;
+  mass *= depth / originalBoxSize;
   const body = new CANNON.Body({ mass, shape });
   body.position.set(x, y, z);
   world.addBody(body);
@@ -150,7 +226,7 @@ function generateBox(x, y, z, width, depth, falls) {
     threejs: mesh,
     cannonjs: body,
     width,
-    depth
+    depth,
   };
 }
 
@@ -180,14 +256,8 @@ function cutBox(topLayer, overlap, size, delta) {
 
 window.addEventListener("mousedown", splitBlockAndAddNextOneIfOverlaps);
 window.addEventListener("touchstart", splitBlockAndAddNextOneIfOverlaps);
-
-
-restartBtn.addEventListener("click", restart);
-function restart(){
-  startGame();
-  return;
-}
-
+restartBtn.addEventListener("click", startGame);
+startBtn.addEventListener("click", startGame);
 
 function splitBlockAndAddNextOneIfOverlaps() {
   if (gameEnded) return;
@@ -225,8 +295,8 @@ function splitBlockAndAddNextOneIfOverlaps() {
     // Next layer
     const nextX = direction == "x" ? topLayer.threejs.position.x : -10;
     const nextZ = direction == "z" ? topLayer.threejs.position.z : -10;
-    const newWidth = topLayer.width; // New layer has the same size as the cut top layer
-    const newDepth = topLayer.depth; // New layer has the same size as the cut top layer
+    const newWidth = topLayer.width; // nowa warstwa ma takie same rozmiary jak ta odcięta
+    const newDepth = topLayer.depth; // nowa warstwa ma takie same rozmiary jak ta odcięta
     const nextDirection = direction == "x" ? "z" : "x";
 
     if (scoreElement) scoreElement.innerText = stack.length - 1;
