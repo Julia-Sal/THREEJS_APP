@@ -8,6 +8,8 @@ body {
 }
 
 #instructions {
+  background-image: url('image.jpg');
+  background-size: cover;
   position: absolute;
   display: flex;
   align-items: center;

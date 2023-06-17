@@ -42,15 +42,15 @@ function init() {
   
 
   camera = new THREE.OrthographicCamera(
-    width / -2, // left
-    width / 2, // right
-    height / 2, // top
-    height / -2, // bottom
+    width / -1.75, // left
+    width / 1.75, // right
+    height / 1.75, // top
+    height / -1.75, // bottom
     0, // near plane
     100 // far plane
   );
 
-  camera.position.set(4, 4, 4);
+  camera.position.set(3, 3, 3);
   camera.lookAt(0, 1, 0);
 
   scene = new THREE.Scene();
@@ -114,7 +114,7 @@ function startGame() {
 
   if (camera) {
     // Reset camera positions
-    camera.position.set(4, 4, 4);
+    camera.position.set(3, 3, 3);
     camera.lookAt(0, 1, 0);
   }
 }
@@ -134,45 +134,54 @@ function addOverhang(x, z, width, depth) {
 
 function generateWindows(width, depth, mesh){
   //podstawowe ustawienia okien
+  //1
   const windowSize = Math.min(width, depth) * 0.1;
-  const windowGeometry = new THREE.BoxGeometry(0.1, boxHeight*0.4, 0.1);
+  const windowGeometryLeft = new THREE.BoxGeometry(0.25, boxHeight*0.4, 0.05); //lewa przód
   const windowMaterial = new THREE.MeshLambertMaterial({ color: 0x78b0ff });
-
-  const randomWindowPositions = decideHowManyWindow(width, depth, windowSize); //zdecyduj ile okien ma powstać
+  //2
+  const windowGeometryRight = new THREE.BoxGeometry(0.05, boxHeight*0.4, 0.25);
   
+  const randomWindowPositionsLeft = decideHowManyWindowLeft(width, depth, windowSize); //zdecyduj ile okien ma powstać
+  const randomWindowPositionsRight = decideHowManyWindowRight(width, depth, windowSize);
+
   //wygeneruj okna
-  randomWindowPositions.forEach((windowPosition) => {
-    const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
-    windowMesh.position.set(
+  randomWindowPositionsLeft.forEach((windowPosition) => {
+    const windowMeshLeft = new THREE.Mesh(windowGeometryLeft, windowMaterial);
+    
+    windowMeshLeft.position.set(
       windowPosition.x,
       windowPosition.y,
       windowPosition.z
     );
-    mesh.add(windowMesh);
+    mesh.add(windowMeshLeft);
+  });
+  
+  randomWindowPositionsRight.forEach((windowPosition) => {
+    const windowMeshRight = new THREE.Mesh(windowGeometryRight, windowMaterial);
+    
+    windowMeshRight.position.set(
+      windowPosition.x,
+      windowPosition.y,
+      windowPosition.z
+    );
+    mesh.add(windowMeshRight);
   });
 }
 
-function decideHowManyWindow(width, depth, windowSize){
+function decideHowManyWindowLeft(width, depth, windowSize){
   if(width>2){
   return [
     //tył
-    { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.2 },
-    { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.2 },
-    { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.4 },
-    { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.4 },
-
-    //przód prawa
-    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
-    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.4 },
-    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
-    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.4 },
-   // { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
+    // { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.2 },
+    // { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.2 },
+    // { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.4 },
+    // { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.4 },
 
    //tył
-    { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-    { x: width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
-    { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-    { x: -width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
+    // { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+    // { x: width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
+    // { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+    // { x: -width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
 
     //przód lewa
     { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
@@ -184,21 +193,41 @@ function decideHowManyWindow(width, depth, windowSize){
   ];
   }else if(width>1){  //po dwa okna
     return [
-      { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
-      { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
-
-      { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-      { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+      //tył
+      // { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
+      // { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
 
       { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
       { x: -width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
     ]
   }else{  //po jednym oknie w losowym miejscu
     return [
-      { x: -width / 2 - windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
-      { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 },
-      { x: Math.random() * width - width / 2, y: 0, z: -depth / 2 - windowSize / 2 },
-      { x: Math.random() * width - width / 2, y: 0, z: depth / 2 + windowSize / 2 },
+      // { x: -width / 2 - windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 }, //tył lewa
+      // { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 }, //prawa przód
+      // { x: Math.random() * width - width / 2, y: 0, z: -depth / 2 - windowSize / 2 }, //tył prawa
+       { x: 0, y: 0, z: depth / 2 + windowSize / 2 }, //lewa przód
+    ]
+  }
+}
+
+function decideHowManyWindowRight(width, depth, windowSize){
+  if(depth>2){ 
+  return [
+    //przód prawa
+    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
+    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.4 },
+    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
+    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.4 },
+  ];
+  }else if(depth>1){//po dwa okna
+    return [
+      { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
+      { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
+
+    ]
+  }else{//po jednym oknie
+    return [
+      { x: width / 2 + windowSize / 2, y: 0, z: 0 },
     ]
   }
 }
