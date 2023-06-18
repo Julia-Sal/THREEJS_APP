@@ -1,17 +1,18 @@
 import * as THREE from 'three';
 import { createBackground} from './background';
+import { generateWindows} from './windows';
 import * as CANNON from 'cannon';
 
 
 window.focus(); // Capture keys right away (by default focus is on editor)
 
-let camera, scene, renderer; // ThreeJS globals
-let world; // CannonJs world
+let camera, scene, renderer; // three js globalne
+let world; // świat - CannonJS
 let lastTime; // Last timestamp of animation
-let stack; // Parts that stay solid on top of each other
-let overhangs; // Overhanging parts that fall down
-const boxHeight = 1; // Height of each layer
-const originalBoxSize = 3; // Original width and height of a box
+let stack; // wieża (części wieży na sobie)
+let overhangs; // części które spadają
+const boxHeight = 1; // wysokość warstwy
+const originalBoxSize = 3; // wymiary boxa
 let gameEnded;
 
 const scoreElement = document.getElementById("score");
@@ -19,9 +20,11 @@ const instructionsElement = document.getElementById("instructions");
 const resultsElement = document.getElementById("results");
 const restartBtn = document.getElementById("restartBtn");
 const startBtn = document.getElementById("startBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+
+
 
 init();
-
 
 function init() {
   gameEnded = false;
@@ -55,6 +58,7 @@ function init() {
 
   scene = new THREE.Scene();
   createBackground(scene);
+  scene.background = new THREE.Color(0x030509);
   // Set up lights
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
@@ -132,138 +136,6 @@ function addOverhang(x, z, width, depth) {
   overhangs.push(overhang);
 }
 
-function generateWindows(width, depth, mesh){
-  //podstawowe ustawienia okien
-  //1
-  const windowSize = Math.min(width, depth) * 0.1;
-  const windowGeometryLeft = new THREE.BoxGeometry(0.25, boxHeight*0.4, 0.05); //lewa przód
-  const windowMaterial = new THREE.MeshLambertMaterial({ color: 0x78b0ff });
-  //2
-  const windowGeometryRight = new THREE.BoxGeometry(0.05, boxHeight*0.4, 0.25);
-  
-  const randomWindowPositionsLeft = decideHowManyWindowLeft(width, depth, windowSize); //zdecyduj ile okien ma powstać
-  const randomWindowPositionsRight = decideHowManyWindowRight(width, depth, windowSize);
-
-  //wygeneruj okna
-  randomWindowPositionsLeft.forEach((windowPosition) => {
-    const windowMeshLeft = new THREE.Mesh(windowGeometryLeft, windowMaterial);
-    
-    windowMeshLeft.position.set(
-      windowPosition.x,
-      windowPosition.y,
-      windowPosition.z
-    );
-    mesh.add(windowMeshLeft);
-  });
-  
-  randomWindowPositionsRight.forEach((windowPosition) => {
-    const windowMeshRight = new THREE.Mesh(windowGeometryRight, windowMaterial);
-    
-    windowMeshRight.position.set(
-      windowPosition.x,
-      windowPosition.y,
-      windowPosition.z
-    );
-    mesh.add(windowMeshRight);
-  });
-}
-
-function decideHowManyWindowLeft(width, depth, windowSize){
-  if(width>2){
-  return [
-    //tył
-    // { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.2 },
-    // { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.2 },
-    // { x: width / 2 - windowSize / 2, y: 0, z: depth * 0.4 },
-    // { x: -width / 2 - windowSize / 2, y: 0, z: -depth * 0.4 },
-
-   //tył
-    // { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-    // { x: width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
-    // { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-    // { x: -width * 0.4, y: 0, z: -depth / 2 - windowSize / 2 },
-
-    //przód lewa
-    { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
-    { x: width * 0.4, y: 0, z: depth / 2 + windowSize / 2 },
-    { x: -width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
-    { x: -width * 0.4, y: 0, z: depth / 2 + windowSize / 2 },
-    
-    
-  ];
-  }else if(width>1){  //po dwa okna
-    return [
-      //tył
-      // { x: width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-      // { x: -width * 0.2, y: 0, z: -depth / 2 - windowSize / 2 },
-
-      { x: width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
-      { x: -width * 0.2, y: 0, z: depth / 2 + windowSize / 2 },
-    ]
-  }else{  //po jednym oknie w losowym miejscu
-    return [
-      // { x: -width / 2 - windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 }, //tył lewa
-      // { x: width / 2 + windowSize / 2, y: 0, z: Math.random() * depth - depth / 2 }, //prawa przód
-      // { x: Math.random() * width - width / 2, y: 0, z: -depth / 2 - windowSize / 2 }, //tył prawa
-       { x: 0, y: 0, z: depth / 2 + windowSize / 2 }, //lewa przód
-    ]
-  }
-}
-
-function decideHowManyWindowRight(width, depth, windowSize){
-  if(depth>2){ 
-  return [
-    //przód prawa
-    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
-    { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.4 },
-    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
-    { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.4 },
-  ];
-  }else if(depth>1){//po dwa okna
-    return [
-      { x: width / 2 + windowSize / 2, y: 0, z: depth * 0.2 },
-      { x: width / 2 + windowSize / 2, y: 0, z: -depth * 0.2 },
-
-    ]
-  }else{//po jednym oknie
-    return [
-      { x: width / 2 + windowSize / 2, y: 0, z: 0 },
-    ]
-  }
-}
-
-
-function generateBox(x, y, z, width, depth, falls) {
-  // ThreeJS
-  const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
-  const color = new THREE.Color(`hsl(${30 + stack.length * 4}, 100%, 50%)`);
-  const material = new THREE.MeshLambertMaterial({ color });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(x, y, z);
-
-  generateWindows(width, depth, mesh); //wygeneruj okna
-
-  scene.add(mesh);
-
-  // CannonJS
-  const shape = new CANNON.Box(
-    new CANNON.Vec3(width / 2, boxHeight / 2, depth / 2)
-  );
-  let mass = falls ? 5 : 0;
-  mass *= width / originalBoxSize;
-  mass *= depth / originalBoxSize;
-  const body = new CANNON.Body({ mass, shape });
-  body.position.set(x, y, z);
-  world.addBody(body);
-
-  return {
-    threejs: mesh,
-    cannonjs: body,
-    width,
-    depth,
-  };
-}
-
 function cutBox(topLayer, overlap, size, delta) {
   const direction = topLayer.direction;
   const newWidth = direction == "x" ? overlap : topLayer.width;
@@ -292,6 +164,12 @@ window.addEventListener("mousedown", splitBlockAndAddNextOneIfOverlaps);
 window.addEventListener("touchstart", splitBlockAndAddNextOneIfOverlaps);
 restartBtn.addEventListener("click", startGame);
 startBtn.addEventListener("click", firstStart);
+window.addEventListener("keydown", function (event) {
+  if (event.key == " ") {
+    splitBlockAndAddNextOneIfOverlaps();
+  }
+});
+
 
 function splitBlockAndAddNextOneIfOverlaps() {
   if (gameEnded) return;
@@ -412,3 +290,33 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.render(scene, camera);
 });
+
+function generateBox(x, y, z, width, depth, falls) {
+  // ThreeJS
+  const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
+  const color = new THREE.Color(`hsl(${30 + stack.length * 4}, 100%, 50%)`);
+  const material = new THREE.MeshLambertMaterial({ color });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+
+  generateWindows(width, depth, mesh, boxHeight); //wygeneruj okna
+  scene.add(mesh);
+
+  // CannonJS
+  const shape = new CANNON.Box(
+    new CANNON.Vec3(width / 2, boxHeight / 2, depth / 2)
+  );
+  let mass = falls ? 5 : 0;
+  mass *= width / originalBoxSize;
+  mass *= depth / originalBoxSize;
+  const body = new CANNON.Body({ mass, shape });
+  body.position.set(x, y, z);
+  world.addBody(body);
+
+  return {
+    threejs: mesh,
+    cannonjs: body,
+    width,
+    depth,
+  };
+}

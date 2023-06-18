@@ -29,21 +29,22 @@ body {
   background-color: rgba(20, 20, 20, 0.75);
 }
 
-a:visited {
-  color: inherit;
-}
-
 #results {
   display: none;
   cursor: default;
 }
 
-#results .content,
+#results .content{
+  max-width: 500px;
+  padding: 50px;
+}
+
 #instructions .content {
   max-width: 500px;
   padding: 50px;
   border-radius: 20px;
   margin: 0 auto;
+  background-color: rgba(20, 20, 20, 0.75);
 
 }
 
@@ -58,8 +59,7 @@ a:visited {
 
 .button {
   align-items: center;
-  background-color: initial;
-  border-radius: 42px;
+  border-radius: 13px;
   border-width: 0;
   box-shadow: rgba(9, 49, 14, 0.24) 0 2px 2px,rgba(142, 212, 233, 0.4) 0 8px 12px;
   color: #FFFFFF;
@@ -69,7 +69,6 @@ a:visited {
   font-size: 18px;
   font-weight: 700;
   justify-content: center;
-  letter-spacing: .04em;
   line-height: 16px;
   padding: 18px 18px;
   text-align: center;
@@ -77,20 +76,22 @@ a:visited {
   text-shadow: rgba(255, 255, 255, 0.4) 0 0 4px,rgba(255, 255, 255, 0.2) 0 0 12px,rgba(57, 31, 91, 0.6) 1px 1px 4px,rgba(57, 31, 91, 0.32) 4px 4px 16px;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
-  vertical-align: baseline;
-  
-  position: absolute; 
-  left: 50%; transform: translateX(-50%);
-
-
-
+  vertical-align: baseline; 
+  background-image: linear-gradient(#0083cf, #004666 50%);
+  margin-top: 40px;
 }
 
 .button:hover {
-  background-image: linear-gradient(#0083cf, #004666 50%);
+  background-image: linear-gradient(#004666, #0083cf 50%);
+}
+
+.center-button{
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .text{
   font-size: 60px;
+  margin-bottom: 0px;
 }
